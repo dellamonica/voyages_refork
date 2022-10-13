@@ -354,3 +354,6 @@ def store_audio(request, contrib_pk, name_pk, token):
     with open(file_name, 'wb+') as destination:
         destination.write(request.body)
     return JsonResponse({'len': len(request.body)})
+
+def enslaver_contrib_edit(request, id):
+    return render(request, 'past/enslavers_contribute.html', { "mode": "edit", "id": id })

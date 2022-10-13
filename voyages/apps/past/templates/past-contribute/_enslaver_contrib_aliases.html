@@ -1,0 +1,47 @@
+{% load i18n %}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="btn-group" role="group" aria-label="Alias actions">
+            <button type="button" class="btn btn-primary">{% trans "New Alias" %}</button>
+            <button type="button" v-bind:class="{ disabled: !selectedAlias }" class="btn btn-secondary">{% trans "Set as Principal" %}</button>
+            <button type="button" v-on:click="delSelAlias" v-bind:class="{ disabled: !selectedAlias }" class="btn btn-danger">{% trans "Delete Alias" %}</button>
+        </div>
+        <div>
+            <select v-model="selectedAlias" id="aliases-select" name="aliases" size="6" class="form-control" >
+                <option v-for="alias in selectedIdentity.aliases" class="list-group-item" v-bind:class="{ bold: alias.name === selectedIdentity.personal_data.principal_alias }" v-bind:value="alias.id">[[ alias.name ]] (id [[ alias.id ]])</option>
+            </select>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="btn-group" role="group" aria-label="Basic example">
+            <div class="dropdown">
+                <button type="button" v-bind:class="{ disabled: !selectedAlias }" class="btn btn-primary dropdown-toggle" type="button" id="moveDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% trans "Link Voyage" %}
+                </button>
+                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <label for="linkVoyageIdField">{% trans "Voyage id" %}:</label>
+                    <input class="form-control" name="linkVoyageIdField" type="number" v-model="linkVoyageInput" />
+                    <button class="btn" v-on:click="linkVoyage">Link</button>
+                </div>
+              </div>
+            <div class="dropdown">
+                <button v-bind:class="{ disabled: !selectedAlias || !selectedVoyage }" class="btn btn-secondary dropdown-toggle" type="button" id="moveDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% trans "Move to Alias" %}
+                </button>
+                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                  <a v-on:click="moveVoyage" v-bind:value="alias.id" v-for="alias in selectedIdentity.aliases" class="dropdown-item" href="#">[[ alias.name ]] (id [[ alias.id ]])</a>
+                </div>
+              </div>
+            <button type="button" v-on:click="unlinkVoyage" v-bind:class="{ disabled: !selectedAlias || !selectedVoyage }" class="btn btn-danger">{% trans "Unlink Voyage" %}</button>
+        </div>
+        <div v-if="selectedAlias">
+            <select v-model="selectedVoyage" id="voyages-select" name="voyages" size="6" class="form-control" >
+                <option v-if="selAlias().voyages.length === 0">
+                    {% trans "No linked voyage" %}
+                </option>
+                <option v-for="voyage in selAlias().voyages" class="list-group-item" v-bind:value="voyage.voyage__voyage_id">[[ voyage.voyage__voyage_id ]]</option>
+            </select>
+        </div>
+    </div>
+</div>

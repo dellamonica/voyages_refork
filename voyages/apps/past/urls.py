@@ -24,7 +24,11 @@ urlpatterns = [
     url(r'^database',
         voyages.apps.past.views.enslaved_database,
         name='database'),
-     url(r'^enslavers',
+    url(r'^enslavers_contribute/edit/(?P<id>.*)',
+        voyages.apps.past.views.enslaver_contrib_edit,
+        name='enslaver_contribute_edit') \
+            if is_feature_enabled('ENSLAVERS') else None,
+     url(r'^enslavers$',
         TemplateView.as_view(template_name='past/enslavers.html'),
         name='enslavers') \
             if is_feature_enabled('ENSLAVERS') else None,
