@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
 from django.core.urlresolvers import reverse
 from django.db import connection, transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from django.db.models.fields import Field
 from django.http import (Http404, HttpResponse, HttpResponseBadRequest,
                          HttpResponseForbidden, HttpResponseRedirect,
@@ -2377,6 +2377,21 @@ def publish_origins_editorial_review(request):
         contrib.save()
     return JsonResponse({ 'result': f"Contribution propagated to {len(propagation)} records." })
 
+def _voyage_summary_fields(query, prefix= None):
+    kwargs = {
+        'pk': 'voyage_id',
+        'ship_name': 'voyage_ship__ship_name',
+        'arrival': 'voyage_dates__imp_arrival_at_port_of_dis'
+    }
+    kwargs = {k: F((prefix or '') + f) for k, f in kwargs.items()}
+    return query.values(**kwargs)
+
+def get_voyage_summary(request, pk):
+    matches = list(_voyage_summary_fields(Voyage.all_dataset_objects.filter(pk=pk)))
+    if len(matches) != 1:
+        return JsonResponse({ "error": "Not found" })
+    return JsonResponse(matches[0])
+
 @csrf_exempt
 @require_POST
 def init_enslaver_interim(request):
@@ -2406,11 +2421,8 @@ def init_enslaver_interim(request):
         return {
             "id": alias.id,
             "name": alias.alias,
-            "voyages": list(EnslaverVoyageConnection.objects.filter(enslaver_alias=alias). \
-                values('voyage__voyage_id', 'voyage__voyage_id', 'voyage__voyage_ship__ship_name', \
-                    'voyage__voyage_dates__imp_arrival_at_port_of_dis',
-                    'voyage__voyage_itinerary__imp_principal_place_of_slave_purchase_id',
-                    'voyage__voyage_itinerary__imp_principal_port_slave_dis_id'))
+            "voyages": list(_voyage_summary_fields(
+                EnslaverVoyageConnection.objects.filter(enslaver_alias=alias), 'voyage__'))
         }
 
     def _get_enslaver_data(enslaver):
@@ -2445,6 +2457,15 @@ def init_enslaver_interim(request):
         'identities': identities
     }
     return JsonResponse(output)
+
+@login_required()
+@require_POST
+def submit_enslaver_contribution(request):
+    """
+    Submit a user contribution to an enslaver.
+    """
+    raise Exception("TODO")
+
 
 @login_required()
 @require_POST

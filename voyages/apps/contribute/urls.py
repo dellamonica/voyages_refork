@@ -116,6 +116,9 @@ urlpatterns = [
     url(r'publish_origins_editorial_review',
         views.publish_origins_editorial_review,
         name='publish_origins_editorial_review'),
+    url(r'voyage_summary/(?P<pk>\d+)',
+        views.get_voyage_summary,
+        name='get_voyage_summary'),
     url(r'init_enslaver_interim',
         views.init_enslaver_interim,
         name='init_enslaver_interim')

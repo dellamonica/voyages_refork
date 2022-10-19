@@ -16,6 +16,16 @@
     <link href="{% sass_src 'scss/library/loading.css' %}" rel="stylesheet" type="text/css" />
     <link href="{% sass_src 'scss/library/vue-treeselect@0.0.37.min.css' %}" rel="stylesheet" type="text/css" />
 	{% endcompress %}
+    <style>
+        .contrib_select_lists {
+            height: calc(100vh - 230px);
+            margin-top: 8px;
+        }
+
+        .disabled {
+            pointer-events: none;
+        }
+    </style>
 {% endblock %}
 
 {% block title %}
@@ -51,6 +61,8 @@
 </div>
 <script src="{{ STATIC_URL }}scripts/library/vue@2.6.7.min.js" type="text/javascript"></script>
 <script>
+    const closeModals = () => $('.modal').modal("hide");
+
     async function initialize() {
         // The interim is either injected via Django view or we need to fetch it
         // based on URL params.
@@ -63,6 +75,7 @@
             });
             interim = await data.json();
         }
+        let newCount = 0;
         const viewModel = new Vue({
             el: "#center-content-inner",
             delimiters: ['[[', ']]'],
@@ -73,6 +86,15 @@
                 selectedVoyage: null,
                 linkVoyageInput: null,
             },
+            watch: {
+                selectedIdentity(oldValue, newValue) {
+                    this.selectedAlias = null;
+                    this.selectedVoyage = null;
+                },
+                selectedAlias(oldValue, newValue) {
+                    this.selectedVoyage = null;
+                }
+            },
             methods: {
                 selAlias: function() {
                     if (!this.selectedAlias) {
@@ -80,9 +102,39 @@
                     }
                     return this.selectedIdentity.aliases[this.selectedAlias];
                 },
+                createAlias: function() {
+                    if (!this.selectedIdentity) {
+                        return;
+                    }
+                    const name = document.getElementById("newAliasInput").value;
+                    // Simple validation.
+                    if (name.length <= 3 || !name.match(/^[\.,\sa-zA-Z\u00C0-\u024F\u1E00-\u1EFF]+$/)) {
+                        alert(gettext("Validation for name failed: too short or containing invalid characters"));
+                        return;
+                    }
+                    ++newCount;
+                    const key = `new_${newCount}`;
+                    this.selectedIdentity.aliases[key] = {
+                        id: key,
+                        name,
+                        voyages: []
+                    };
+                    this.selectedAlias = key;
+                    closeModals();
+                },
                 delSelAlias: function() {
                     if (!this.selectedAlias) {
-                        return null;
+                        return;
+                    }
+                    const current = this.selAlias();
+                    const alias_val = current.name;
+                    const num_voyages = current.voyages.length;
+                    // The translated text should preserve "{num}" segments.
+                    const msg = gettext("Delete alias '{0}' with {1} linked voyages?")
+                        .replace('{0}', alias_val)
+                        .replace('{1}', num_voyages);
+                    if (!confirm(msg)) {
+                        return;
                     }
                     delete this.selectedIdentity.aliases[this.selectedAlias];
                     this.selectedAlias = null;
@@ -92,19 +144,36 @@
                     if (!target) {
                         return;
                     }
-                    const match = this.unlinkVoyage();
+                    const match = this.unlinkVoyage({ force: true });
                     if (match) {
                         target.voyages.push(match);
                     }
                 },
-                unlinkVoyage: function() {
+                setPrincipal: function() {
+                    const alias = this.selAlias();
+                    if (alias && this.selectedIdentity) {
+                        this.selectedIdentity.personal_data.principal_alias = alias.name;
+                    }
+                },
+                showVoyageInfo: function() {
+                    if (this.selectedVoyage) {
+                        window.open(
+                            `/voyage/${this.selectedVoyage}/variables`,
+                            gettext('Voyage details'),
+                            'location=no,toolbar=no,menubar=no');
+                    }
+                },
+                unlinkVoyage: function(event) {
                     const source = this.selAlias();
                     if (!source) {
                         return null;
                     }
+                    if (!event.force && !confirm(gettext('Confirm voyage removal from the alias?'))) {
+                        return null;
+                    }
                     let match = null;
                     source.voyages = source.voyages.filter((val) => {
-                        const isMatch = val.voyage__voyage_id === this.selectedVoyage;
+                        const isMatch = val.pk === this.selectedVoyage;
                         if (isMatch) {
                             match = val;
                         }
@@ -116,16 +185,17 @@
                     return match;
                 },
                 linkVoyage: async function() {
-                    if (this.linkVoyageInput) {
-                        const res = await fetch("/contribute/voyage_ajax", {
-                            method: "POST",
-                            body: JSON.stringify({ voyage_id: parseInt(this.linkVoyageInput) })
-                        });
+                    const alias = this.selAlias();
+                    if (alias && this.linkVoyageInput) {
+                        const res = await fetch(`/contribute/voyage_summary/${this.linkVoyageInput}`);
                         const data = await res.json();
-                        this.selAlias().voyages.push({
-                            
-                        });
+                        if (data.error || !data.pk) {
+                            alert(`Error fetching voyage id ${this.linkVoyageInput}: ${data.error}.`);
+                        } else {
+                            alias.voyages.push(data);
+                        }
                     }
+                    closeModals();
                 }
             }
         });
