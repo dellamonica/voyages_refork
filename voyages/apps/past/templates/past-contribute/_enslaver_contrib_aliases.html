@@ -1,8 +1,32 @@
 {% load i18n %}
 
+<div class="row" v-if="interim.type === 'split'">
+    <div class="col-md-6 form-inline">
+        <label for="identities">{% trans "Identity:" %}</label>
+        <select v-model="selectedIdentity" name="identities" class="form-control">
+            <option v-for="identity in interim.identities" v-bind:value="identity">
+                [[identity.personal_data.principal_alias]]
+            </option>
+        </select>
+    </div>
+</div>
 <div class="row">
     <div class="col-md-6">
         <div class="btn-group" role="group" aria-label="Alias actions">
+            <div class="dropdown" v-if="interim.type === 'split'">
+                <button v-bind:class="{ disabled: !selectedIdentity || !selectedAlias }"
+                    class="btn btn-secondary dropdown-toggle" type="button" id="moveDropdown" data-toggle="dropdown"
+                    aria-haspopup="true" aria-expanded="false">
+                    {% trans "Move to Identity" %}
+                </button>
+                <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                    <a v-on:click="moveAlias"
+                        v-bind:class="{ disabled: identity === selectedIdentity }"
+                        v-bind:value="identity.id"
+                        v-for="identity in interim.identities"
+                        class="dropdown-item" href="#">[[identity.personal_data.principal_alias]] (id [[ identity.id ]])</a>
+                </div>
+            </div>
             <button type="button" v-bind:class="{ disabled: !selectedIdentity }" class="btn btn-primary"
                 data-toggle="modal" data-target="#newAliasModal">{% trans "New Alias" %}</button>
             <button type="button" v-on:click="setPrincipal" v-bind:class="{ disabled: !selectedAlias }"
@@ -28,7 +52,10 @@
                     {% trans "Move to Alias" %}
                 </button>
                 <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                    <a v-on:click="moveVoyage" v-bind:value="alias.id" v-for="alias in selectedIdentity.aliases"
+                    <a v-on:click="moveVoyage"
+                        v-bind:value="alias.id"
+                        v-bind:class="{ disabled: selectedAlias === alias.id }"
+                        v-for="alias in selectedIdentity.aliases"
                         class="dropdown-item" href="#">[[ alias.name ]] (id [[ alias.id ]])</a>
                 </div>
             </div>
@@ -43,7 +70,7 @@
                 v-bind:class="{ disabled: !selectedAlias || !selectedVoyage }" class="btn btn-danger">{% trans "Unlink Voyage" %}</button>
         </div>
         <div v-if="selectedAlias">
-            <select v-model="selectedVoyage" id="voyages-select" name="voyages" size="6"
+            <select v-model="selectedVoyage" multiple id="voyages-select" name="voyages" size="6"
                 class="form-control contrib_select_lists">
                 <option disabled v-if="selAlias().voyages.length === 0">
                     {% trans "No linked voyage" %}
@@ -67,7 +94,7 @@
                 </button>
             </div>
             <div class="modal-body">
-                <input class="form-control" type="text" id="newAliasInput" autofocus>
+                <input class="form-control" type="text" id="newAliasInput" v-model="createAliasInput" autofocus>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-primary" v-on:click="createAlias">{% trans "Add" %}</button>
@@ -87,7 +114,7 @@
                 </button>
             </div>
             <div class="modal-body">
-                <input class="form-control" name="linkVoyageIdField" type="number" v-model="linkVoyageInput" />
+                <input class="form-control" name="linkVoyageIdField" type="number" v-model="linkVoyageInput" autofocus />
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-primary" v-on:click="linkVoyage">{% trans "Link" %}</button>

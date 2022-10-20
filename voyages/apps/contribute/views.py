@@ -2407,13 +2407,27 @@ def init_enslaver_interim(request):
     """
     data = json.loads(request.body)
     mode = data.get('type')
-    if mode not in ["merge", "edit", "split"]:
+    if mode not in ["new", "merge", "edit", "split"]:
         return JsonResponse({ 'error': 'Type must be set to one of merge|edit|split' }, status=400)
     enslavers = data.get('enslavers')
-    expected = 2 if mode == 'merge' else 1
+    if mode == 'new':
+        expected = 0
+    else:
+        expected = 2 if mode == 'merge' else 1
     if len(enslavers) != expected:
         return JsonResponse({ 'error': f'Expected {expected} enslaver(s).' }, status=400)
-    originals = [EnslaverIdentity.objects.filter(pk=eid).values()[0] for eid in enslavers]
+    identities = {}
+    if mode == 'new':
+        identities[mode] = {
+            'id': mode,
+            'aliases': {},
+            'personal_data': {f.name: None for f in EnslaverIdentity._meta.get_fields() if f.related_model is None}
+        }            
+        return JsonResponse({ 'type': mode, 'identities': identities })
+    try:
+        originals = [EnslaverIdentity.objects.filter(pk=eid).values()[0] for eid in enslavers]
+    except:
+        return JsonResponse({ "error": "not found" })
 
     # This is not very efficient, but we do not expect this to be called too
     # much and the number of objects should be quite small.
@@ -2450,13 +2464,11 @@ def init_enslaver_interim(request):
                 # Clear the aliases from the original.
                 identities[k]['aliases'] = {}
     if mode == 'split':
-        identities['split_left'] = { 'personal_data': dict(identities[0]), 'aliases': [] }
-        identities['split_right'] = { 'personal_data': dict(identities[0]), 'aliases': [] }
-    output = {
-        'type': mode,
-        'identities': identities
-    }
-    return JsonResponse(output)
+        d = dict(list(identities.values())[0]['personal_data'])
+        split_key = "split"
+        d['principal_alias'] = split_key
+        identities['split'] = { 'id': split_key, 'personal_data': d, 'aliases': {} }
+    return JsonResponse({ 'type': mode, 'identities': identities })
 
 @login_required()
 @require_POST

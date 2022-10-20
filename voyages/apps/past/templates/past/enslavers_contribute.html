@@ -18,7 +18,7 @@
 	{% endcompress %}
     <style>
         .contrib_select_lists {
-            height: calc(100vh - 230px);
+            height: calc(100vh - 250px);
             margin-top: 8px;
         }
 
@@ -74,25 +74,33 @@
                 body: JSON.stringify({ type: '{{ mode }}', enslavers: [{{ id }}] })
             });
             interim = await data.json();
+            if (!!interim.error) {
+                alert(`Error: ${interim.error}`);
+                return;
+            }
         }
         let newCount = 0;
+        const selectedIdentity = interim.type === "merge"
+            ? interim.identities["merged"]
+            : interim.identities[Object.keys(interim.identities)[0]];
         const viewModel = new Vue({
             el: "#center-content-inner",
             delimiters: ['[[', ']]'],
             data: {
                 interim,
                 selectedAlias: null,
-                selectedIdentity: interim.identities[Object.keys(interim.identities)[0]],
-                selectedVoyage: null,
+                selectedIdentity,
+                selectedVoyage: [],
                 linkVoyageInput: null,
+                createAliasInput: null
             },
             watch: {
                 selectedIdentity(oldValue, newValue) {
                     this.selectedAlias = null;
-                    this.selectedVoyage = null;
+                    this.selectedVoyage = [];
                 },
                 selectedAlias(oldValue, newValue) {
-                    this.selectedVoyage = null;
+                    this.selectedVoyage = [];
                 }
             },
             methods: {
@@ -102,13 +110,18 @@
                     }
                     return this.selectedIdentity.aliases[this.selectedAlias];
                 },
+                isNewAliasValid: function() {
+                    const name = this.createAliasInput;
+                    // Simple validation.
+                    return name.length > 3 && name.match(/^[\.,\sa-zA-Z\u00C0-\u024F\u1E00-\u1EFF]+$/);
+                },
                 createAlias: function() {
                     if (!this.selectedIdentity) {
                         return;
                     }
-                    const name = document.getElementById("newAliasInput").value;
+                    const name = this.createAliasInput;
                     // Simple validation.
-                    if (name.length <= 3 || !name.match(/^[\.,\sa-zA-Z\u00C0-\u024F\u1E00-\u1EFF]+$/)) {
+                    if (!this.isNewAliasValid()) {
                         alert(gettext("Validation for name failed: too short or containing invalid characters"));
                         return;
                     }
@@ -120,6 +133,7 @@
                         voyages: []
                     };
                     this.selectedAlias = key;
+                    this.createAliasInput = null;
                     closeModals();
                 },
                 delSelAlias: function() {
@@ -139,6 +153,17 @@
                     delete this.selectedIdentity.aliases[this.selectedAlias];
                     this.selectedAlias = null;
                 },
+                moveAlias: function(event) {
+                    const target = this.interim.identities[event.target.getAttribute("value")];
+                    const alias = this.selAlias();
+                    if (!this.selectedAlias || !target) {
+                        return;
+                    }
+                    const key = this.selectedAlias;
+                    delete this.selectedIdentity.aliases[key];
+                    target.aliases[key] = alias;
+                    this.selectedAlias = null;
+                },
                 moveVoyage: function(event) {
                     const target = this.selectedIdentity.aliases[event.target.getAttribute("value")];
                     if (!target) {
@@ -146,7 +171,9 @@
                     }
                     const match = this.unlinkVoyage({ force: true });
                     if (match) {
-                        target.voyages.push(match);
+                        for (const m of match) {
+                            target.voyages.push(m);
+                        }
                     }
                 },
                 setPrincipal: function() {
@@ -158,7 +185,7 @@
                 showVoyageInfo: function() {
                     if (this.selectedVoyage) {
                         window.open(
-                            `/voyage/${this.selectedVoyage}/variables`,
+                            `/voyage/${this.selectedVoyage[0]}/variables`,
                             gettext('Voyage details'),
                             'location=no,toolbar=no,menubar=no');
                     }
@@ -171,16 +198,16 @@
                     if (!event.force && !confirm(gettext('Confirm voyage removal from the alias?'))) {
                         return null;
                     }
-                    let match = null;
+                    const match = [];
                     source.voyages = source.voyages.filter((val) => {
-                        const isMatch = val.pk === this.selectedVoyage;
+                        const isMatch = this.selectedVoyage.indexOf(val.pk) >= 0;
                         if (isMatch) {
-                            match = val;
+                            match.push(val);
                         }
                         return !isMatch;
                     });
                     if (match) {
-                        this.selectedVoyage = null;
+                        this.selectedVoyage = [];
                     }
                     return match;
                 },
@@ -193,6 +220,7 @@
                             alert(`Error fetching voyage id ${this.linkVoyageInput}: ${data.error}.`);
                         } else {
                             alias.voyages.push(data);
+                            this.linkVoyageInput = null;
                         }
                     }
                     closeModals();

@@ -357,3 +357,12 @@ def store_audio(request, contrib_pk, name_pk, token):
 
 def enslaver_contrib_edit(request, id):
     return render(request, 'past/enslavers_contribute.html', { "mode": "edit", "id": id })
+
+def enslaver_contrib_merge(request, merge_a, merge_b):
+    return render(request, 'past/enslavers_contribute.html', { "mode": "merge", "id": f"{merge_a},{merge_b}" })
+
+def enslaver_contrib_split(request, id):
+    return render(request, 'past/enslavers_contribute.html', { "mode": "split", "id": id })
+
+def enslaver_contrib_new(request):
+    return render(request, 'past/enslavers_contribute.html', { "mode": "new", "id": "" })
