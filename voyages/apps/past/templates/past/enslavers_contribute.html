@@ -17,13 +17,22 @@
     <link href="{% sass_src 'scss/library/vue-treeselect@0.0.37.min.css' %}" rel="stylesheet" type="text/css" />
 	{% endcompress %}
     <style>
-        .contrib_select_lists {
+        .enslaver_contrib_fullspan_control {
             height: calc(100vh - 250px);
             margin-top: 8px;
         }
 
         .disabled {
             pointer-events: none;
+        }
+
+        .even_row {
+            align-items: center;
+        }
+
+        .odd_row {
+            align-items: center;
+            background-color: lightblue;
         }
     </style>
 {% endblock %}
@@ -45,6 +54,12 @@
                 <li class="nav-item">
                     <a class="nav-link" @click="setActive('personal')" href="#personal" data-toggle="tab" data-target="#personal">{% trans 'Personal information' %}</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" @click="setActive('notes')" href="#notes" data-toggle="tab" data-target="#notes">{% trans 'Notes' %}</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" @click="setActive('review')" href="#review" data-toggle="tab" data-target="#review">{% trans 'Review and Submit' %}</a>
+                </li>
             </ul>
             
             <!-- TabContainers -->
@@ -54,6 +69,12 @@
                 </div>
                 <div id="personal" class="tab-pane fade">
                     {% include "past-contribute/_enslaver_contrib_personal.html" %}
+                </div>
+                <div id="notes" class="tab-pane fade">
+                    <textarea name="notes" class="form-control enslaver_contrib_fullspan_control" v-model="interim.notes"></textarea>
+                </div>
+                <div id="review" class="tab-pane fade">
+                    TODO: action buttons (For contributor: submit, for editor: approve/reject)    
                 </div>
             </div>
         </div>
@@ -79,6 +100,10 @@
                 return;
             }
         }
+        let places = await fetch("/contribute/places_ajax");
+        places = await places.json();
+        places = places.filter(p => p.type === "port").map(p => ({ id: parseInt(p.value), name: `${p.port} (${p.code})` }));
+        places.sort((a, b) => a.name.localeCompare(b.name));
         let newCount = 0;
         const selectedIdentity = interim.type === "merge"
             ? interim.identities["merged"]
@@ -87,6 +112,7 @@
             el: "#center-content-inner",
             delimiters: ['[[', ']]'],
             data: {
+                places,
                 interim,
                 selectedAlias: null,
                 selectedIdentity,

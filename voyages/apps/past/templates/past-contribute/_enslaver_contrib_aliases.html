@@ -36,7 +36,7 @@
         </div>
         <div>
             <select v-model="selectedAlias" id="aliases-select" name="aliases" size="6"
-                class="form-control contrib_select_lists ">
+                class="form-control enslaver_contrib_fullspan_control ">
                 <option v-for="alias in selectedIdentity.aliases" class="list-group-item"
                     v-bind:class="{ bold: alias.name === selectedIdentity.personal_data.principal_alias }"
                     v-bind:value="alias.id">[[ alias.name ]] (id [[ alias.id ]])</option>
@@ -71,7 +71,7 @@
         </div>
         <div v-if="selectedAlias">
             <select v-model="selectedVoyage" multiple id="voyages-select" name="voyages" size="6"
-                class="form-control contrib_select_lists">
+                class="form-control enslaver_contrib_fullspan_control">
                 <option disabled v-if="selAlias().voyages.length === 0">
                     {% trans "No linked voyage" %}
                 </option>

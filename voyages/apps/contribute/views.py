@@ -2418,10 +2418,15 @@ def init_enslaver_interim(request):
         return JsonResponse({ 'error': f'Expected {expected} enslaver(s).' }, status=400)
     identities = {}
     if mode == 'new':
+        personal_fields = ['principal_alias', 'birth_year', 'birth_month', 
+            'birth_day', 'birth_place', 'death_year', 'death_month', 'death_day',
+            'death_place', 'father_name', 'father_occupation', 'mother_name',
+            'probate_date', 'will_value_pounds', 'will_value_dollars', 
+            'will_court', 'principal_location', 'notes']
         identities[mode] = {
             'id': mode,
             'aliases': {},
-            'personal_data': {f.name: None for f in EnslaverIdentity._meta.get_fields() if f.related_model is None}
+            'personal_data': {f.name: None for f in personal_fields}
         }            
         return JsonResponse({ 'type': mode, 'identities': identities })
     try:
@@ -2458,7 +2463,7 @@ def init_enslaver_interim(request):
                 merged[k] = v[0]
             else:
                 merged[k] = "conflict"
-        identities['merged'] = { 'personal_data': merged, 'aliases': { k: v for identity in identities.values() for k, v in identity['aliases'].items() } }
+        identities['merged'] = { 'id': 'merged', 'personal_data': merged, 'aliases': { k: v for identity in identities.values() for k, v in identity['aliases'].items() } }
         for k in identities.keys():
             if k != 'merged':
                 # Clear the aliases from the original.
@@ -2468,7 +2473,7 @@ def init_enslaver_interim(request):
         split_key = "split"
         d['principal_alias'] = split_key
         identities['split'] = { 'id': split_key, 'personal_data': d, 'aliases': {} }
-    return JsonResponse({ 'type': mode, 'identities': identities })
+    return JsonResponse({ 'type': mode, 'identities': identities, 'notes': None })
 
 @login_required()
 @require_POST
