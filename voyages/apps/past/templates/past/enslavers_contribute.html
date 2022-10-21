@@ -74,7 +74,15 @@
                     <textarea name="notes" class="form-control enslaver_contrib_fullspan_control" v-model="interim.notes"></textarea>
                 </div>
                 <div id="review" class="tab-pane fade">
-                    TODO: action buttons (For contributor: submit, for editor: approve/reject)    
+                    TODO: action buttons (For contributor: submit, for editor: approve/reject)
+                    <div class="panel panel-danger" v-if="validation.length > 0">
+                        <div class="panel-heading">
+                          <h3 class="panel-title">{% trans "Validation Errors" %}</h3>
+                        </div>
+                        <ul>
+                            <li v-for="error in validation">[[ error ]]</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -105,9 +113,34 @@
         places = places.filter(p => p.type === "port").map(p => ({ id: parseInt(p.value), name: `${p.port} (${p.code})` }));
         places.sort((a, b) => a.name.localeCompare(b.name));
         let newCount = 0;
-        const selectedIdentity = interim.type === "merge"
-            ? interim.identities["merged"]
-            : interim.identities[Object.keys(interim.identities)[0]];
+        const validate = personalData => {
+            const res = []
+            for (const [key, val] of Object.entries(personalData || {})) {
+                // Just check that no conflict string has been left (only useful
+                // in merge contribs).
+                if (val === 'conflict') {
+                    res.push(gettext("Merge conflict for property {0}").replace('{0}', key));
+                }
+                if (val !== '' && key.endsWith('day')) {
+                    const day = parseInt(val);
+                    if (isNaN(day) || day < 1) {
+                        res.push(gettext("Invalid value for {0}").replace('{0}', key));
+                        continue;
+                    }
+                    // Must have corresponding month set.
+                    const month = parseInt(personalData[key.replace('day', 'month')]);
+                    if (isNaN(month) || month < 1 || month > 12) {
+                        res.push(gettext("No valid month for {0}").replace('{0}', key));
+                    } else {
+                        const monthSize = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ];
+                        if (day > monthSize[month - 1]) {
+                            res.push(gettext("Invalid value for {0}").replace('{0}', key));
+                        }
+                    }
+                }
+            }
+            return res;
+        };
         const viewModel = new Vue({
             el: "#center-content-inner",
             delimiters: ['[[', ']]'],
@@ -115,10 +148,27 @@
                 places,
                 interim,
                 selectedAlias: null,
-                selectedIdentity,
+                selectedIdentity: interim.type === "merge"
+                    ? interim.identities["merged"]
+                    : interim.identities[Object.keys(interim.identities)[0]],
                 selectedVoyage: [],
                 linkVoyageInput: null,
                 createAliasInput: null
+            },
+            computed: {
+                validation() {
+                    const t = this.interim.type;
+                    if (t === 'merge') {
+                        return validate(this.interim.identities["merged"].personal_data);
+                    } else if (t === 'split') {
+                        let valid = [];
+                        for (const identity in Object.values(this.interim.identities)) {
+                            valid = valid.concat(validate(identity.personal_data));
+                        }
+                        return valid;
+                    }
+                    return validate(this.selectedIdentity.personal_data);
+                }
             },
             watch: {
                 selectedIdentity(oldValue, newValue) {

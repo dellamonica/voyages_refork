@@ -7,13 +7,15 @@ from datetime import date
 
 from django.conf import settings
 from django.core.paginator import Paginator
+from django.core.urlresolvers import reverse
 from django.db import transaction
 from django.http import JsonResponse, FileResponse
 from django.http.response import HttpResponseBadRequest
-from django.shortcuts import redirect, render
+from django.shortcuts import HttpResponseRedirect, redirect, render
 from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
 from past.utils import old_div
 from voyages.apps.common.models import SavedQuery
 
@@ -355,14 +357,24 @@ def store_audio(request, contrib_pk, name_pk, token):
         destination.write(request.body)
     return JsonResponse({'len': len(request.body)})
 
+def _enslaver_contrib_action(request, data):
+    if not request.user.is_authenticated():
+        return HttpResponseRedirect(reverse('account_login'))
+    return render(request, 'past/enslavers_contribute.html', data)
+
 def enslaver_contrib_edit(request, id):
-    return render(request, 'past/enslavers_contribute.html', { "mode": "edit", "id": id })
+    return _enslaver_contrib_action(request, { "mode": "edit", "id": id })
 
 def enslaver_contrib_merge(request, merge_a, merge_b):
-    return render(request, 'past/enslavers_contribute.html', { "mode": "merge", "id": f"{merge_a},{merge_b}" })
+    return _enslaver_contrib_action(request, { "mode": "merge", "id": f"{merge_a},{merge_b}" })
 
 def enslaver_contrib_split(request, id):
-    return render(request, 'past/enslavers_contribute.html', { "mode": "split", "id": id })
+    return _enslaver_contrib_action(request, { "mode": "split", "id": id })
 
 def enslaver_contrib_new(request):
-    return render(request, 'past/enslavers_contribute.html', { "mode": "new", "id": "" })
+    return _enslaver_contrib_action(request, { "mode": "new", "id": "" })
+
+@login_required
+@require_POST
+def enslaver_contrib_save(request):
+    pass
