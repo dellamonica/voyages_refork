@@ -76,7 +76,7 @@
                     {% trans "No linked voyage" %}
                 </option>
                 <option v-for="voyage in selAlias().voyages" class="list-group-item" v-bind:value="voyage.pk">
-                    [[ voyage.pk ]] - [[ voyage.ship_name ]], [[ voyage.arrival.replaceAll(',', '') ]]
+                    {% trans "Voyage" %} [[ voyage.pk ]] - [[ voyage.ship_name ]], [[ voyage.arrival.replaceAll(',', '') ]]
                 </option>
             </select>
         </div>

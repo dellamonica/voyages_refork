@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.mail import send_mail
 from django.core.urlresolvers import reverse
 from django.db import connection, transaction
-from django.db.models import F, Q
+from django.db.models import F, Q, Count
 from django.db.models.fields import Field
 from django.http import (Http404, HttpResponse, HttpResponseBadRequest,
                          HttpResponseForbidden, HttpResponseRedirect,
@@ -53,7 +53,7 @@ from voyages.apps.contribute.publication import (
     export_contributions, export_from_voyages, full_contribution_id,
     get_csv_writer, get_filtered_contributions, get_header_csv_text,
     publish_accepted_contributions, safe_writerow)
-from voyages.apps.past.models import Enslaved, EnslavedContribution, EnslavedContributionLanguageEntry, EnslavedContributionNameEntry, EnslavedContributionStatus, EnslaverAlias, EnslaverIdentity, EnslaverVoyageConnection, LanguageGroup, ModernCountry
+from voyages.apps.past.models import Enslaved, EnslavedContribution, EnslavedContributionLanguageEntry, EnslavedContributionNameEntry, EnslavedContributionStatus, EnslavementRelation, EnslaverAlias, EnslaverIdentity, EnslaverInRelation, EnslaverVoyageConnection, LanguageGroup, ModernCountry
 from voyages.apps.past.views import _get_audio_filename
 from voyages.apps.voyage.cache import VoyageCache
 from voyages.apps.voyage.forms import VoyagesSourcesAdminForm
@@ -2437,11 +2437,23 @@ def init_enslaver_interim(request):
     # This is not very efficient, but we do not expect this to be called too
     # much and the number of objects should be quite small.
     def _get_alias_data(alias):
+        # Fetch Enslavers' relations with this alias
+        relations = list(EnslaverInRelation.objects.filter(enslaver_alias=alias).values('relation__id', role_name = F('role__name')))
+        for r in relations:
+            info = EnslavementRelation.objects \
+                .annotate(enslaved_count=Count('enslaved', distinct=True)) \
+                .annotate(enslavers_count=Count('enslavers', distinct=True)) \
+                .select_related('role__name', 'relation_type__name') \
+                .filter(pk=r['relation__id']) \
+                .values('id', 'enslaved_count', 'enslavers_count', 'date', type=F('relation_type__name'))
+            r.update(list(info)[0])
+            r.pop('relation__id')
         return {
             "id": alias.id,
             "name": alias.alias,
             "voyages": list(_voyage_summary_fields(
-                EnslaverVoyageConnection.objects.filter(enslaver_alias=alias), 'voyage__'))
+                EnslaverVoyageConnection.objects.filter(enslaver_alias=alias), 'voyage__')),
+            "relations": relations
         }
 
     def _get_enslaver_data(enslaver):

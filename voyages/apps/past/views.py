@@ -9,7 +9,8 @@ from django.conf import settings
 from django.core.paginator import Paginator
 from django.core.urlresolvers import reverse
 from django.db import transaction
-from django.http import JsonResponse, FileResponse
+from django.db.models import F
+from django.http import JsonResponse, Http404
 from django.http.response import HttpResponseBadRequest
 from django.shortcuts import HttpResponseRedirect, redirect, render
 from django.views.decorators.cache import cache_page
@@ -22,7 +23,7 @@ from voyages.apps.common.models import SavedQuery
 from voyages.apps.common.views import get_filtered_results
 from .models import (AltLanguageGroupName, Enslaved,
                      EnslavedContribution, EnslavedContributionLanguageEntry,
-                     EnslavedContributionNameEntry, EnslavedSearch, EnslaverSearch, EnslaverVoyageConnection,
+                     EnslavedContributionNameEntry, EnslavedInRelation, EnslavedSearch, EnslavementRelation, EnslaverInRelation, EnslaverSearch, EnslaverVoyageConnection,
                      LanguageGroup, MultiValueHelper, ModernCountry, EnslavedNameSearchCache,
                      _modern_name_fields, _name_fields)
 
@@ -373,6 +374,21 @@ def enslaver_contrib_split(request, id):
 
 def enslaver_contrib_new(request):
     return _enslaver_contrib_action(request, { "mode": "new", "id": "" })
+
+def get_enslavement_relation_info(request, relation_pk):
+    relation = EnslavementRelation.objects \
+        .filter(pk=relation_pk) \
+        .values('id', 'date', 'amount', 'text_ref', 'voyage_id', \
+            location=F('place__place'), type=F('relation_type__name'))
+    relation = list(relation)
+    if len(relation) != 1:
+        raise Http404
+    relation = relation[0]
+    relation['enslavers'] = list(EnslaverInRelation.objects.filter(relation_id=relation_pk) \
+        .values(alias=F('enslaver_alias__alias'), role_name=F('role__name')))
+    relation['enslaved'] = list(EnslavedInRelation.objects.filter(relation_id=relation_pk) \
+        .values(name=F('enslaved__documented_name')))
+    return JsonResponse(relation)
 
 @login_required
 @require_POST
