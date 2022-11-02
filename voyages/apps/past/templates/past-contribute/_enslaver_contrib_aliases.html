@@ -46,37 +46,46 @@
     <div class="col-md-6">
         <div class="btn-group" role="group" aria-label="Voyage-Alias">
             <div class="dropdown">
-                <button v-bind:class="{ disabled: !selectedAlias || !selectedVoyage }"
+                <button v-bind:class="{ disabled: !selectedAlias || selectAliasChildren.length === 0 }"
                     class="btn btn-secondary dropdown-toggle" type="button" id="moveDropdown" data-toggle="dropdown"
                     aria-haspopup="true" aria-expanded="false">
-                    {% trans "Move to Alias" %}
+                    {% trans "Move to" %}
                 </button>
                 <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                    <a v-on:click="moveVoyage"
+                    <a v-on:click="moveChildren"
                         v-bind:value="alias.id"
                         v-bind:class="{ disabled: selectedAlias === alias.id }"
                         v-for="alias in selectedIdentity.aliases"
                         class="dropdown-item" href="#">[[ alias.name ]] (id [[ alias.id ]])</a>
                 </div>
             </div>
+            <button type="button" v-on:click="showChildInfo" v-bind:class="{ disabled: selectAliasChildren.length === 0 }"
+                class="btn btn-info">Show</button>
+            <button type="button" v-on:click="unlinkChildren"
+                v-bind:class="{ disabled: !selectedAlias || selectAliasChildren.length === 0 }" class="btn btn-danger">{% trans "Unlink" %}
+            </button>
             <button type="button" v-bind:class="{ disabled: !selectedAlias }"
                 class="btn btn-primary" type="button"
                 data-toggle="modal" data-target="#linkVoyageModal" aria-expanded="false">
                 {% trans "Link Voyage" %}
             </button>
-            <button type="button" v-on:click="showVoyageInfo" v-bind:class="{ disabled: !selectedVoyage }"
-                class="btn btn-info">Show</button>
-            <button type="button" v-on:click="unlinkVoyage"
-                v-bind:class="{ disabled: !selectedAlias || !selectedVoyage }" class="btn btn-danger">{% trans "Unlink Voyage" %}</button>
         </div>
         <div v-if="selectedAlias">
-            <select v-model="selectedVoyage" multiple id="voyages-select" name="voyages" size="6"
+            <select v-model="selectAliasChildren" multiple id="voyages-select" name="voyages" size="6"
                 class="form-control enslaver_contrib_fullspan_control">
-                <option disabled v-if="selAlias().voyages.length === 0">
+                <option disabled v-if="selAlias().voyages?.length === 0">
                     {% trans "No linked voyage" %}
                 </option>
-                <option v-for="voyage in selAlias().voyages" class="list-group-item" v-bind:value="voyage.pk">
+                <option v-for="voyage in selAlias().voyages" class="list-group-item" v-bind:value="'V' + [[ voyage.pk ]]">
                     {% trans "Voyage" %} [[ voyage.pk ]] - [[ voyage.ship_name ]], [[ voyage.arrival.replaceAll(',', '') ]]
+                </option>
+                <option disabled v-if="selAlias().relations?.length === 0">
+                    {% trans "No enslavement relations" %}
+                </option>
+                <option v-for="relation in selAlias().relations" class="list-group-item" v-bind:value="'R' + [[ relation.pk ]]">
+                    {% trans "Relation" %} [[ relation.pk ]] - [[ formatCsvDate(relation.date) ]], 
+                    {% trans "with" %} [[ relation.enslaved_count ]] {% trans "enslaved" %}, 
+                    [[ relation.enslavers_count ]] {% trans "enslavers" %}.
                 </option>
             </select>
         </div>

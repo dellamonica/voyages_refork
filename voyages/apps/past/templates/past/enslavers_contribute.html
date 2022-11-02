@@ -91,6 +91,32 @@
 <script src="{{ STATIC_URL }}scripts/library/vue@2.6.7.min.js" type="text/javascript"></script>
 <script>
     const closeModals = () => $('.modal').modal("hide");
+    const formatCsvDate = date => {
+        const components = date.split(',').map(s => parseInt(s));
+        let val = date;
+        if (components.length === 3) {
+            // Year:
+            val = components[2];
+            if (components[0]) {
+                // Month:
+                val += `-${components[0]}`;
+            }
+            if (components[1]) {
+                // Day:
+                val += `-${components[1]}`;
+            }
+        }
+        return val;
+    };
+
+    const filterMatches = (source, selection, matches, prefix) => source.filter(
+        (val) => {
+            const isMatch = selection.indexOf(prefix + val.pk) >= 0;
+            if (isMatch) {
+                matches.push({ prefix, val });
+            }
+            return !isMatch;
+        });
 
     async function initialize() {
         // The interim is either injected via Django view or we need to fetch it
@@ -151,7 +177,7 @@
                 selectedIdentity: interim.type === "merge"
                     ? interim.identities["merged"]
                     : interim.identities[Object.keys(interim.identities)[0]],
-                selectedVoyage: [],
+                selectAliasChildren: [],
                 linkVoyageInput: null,
                 createAliasInput: null
             },
@@ -173,10 +199,10 @@
             watch: {
                 selectedIdentity(oldValue, newValue) {
                     this.selectedAlias = null;
-                    this.selectedVoyage = [];
+                    this.selectAliasChildren = [];
                 },
                 selectedAlias(oldValue, newValue) {
-                    this.selectedVoyage = [];
+                    this.selectAliasChildren = [];
                 }
             },
             methods: {
@@ -206,7 +232,8 @@
                     this.selectedIdentity.aliases[key] = {
                         id: key,
                         name,
-                        voyages: []
+                        voyages: [],
+                        relations: []
                     };
                     this.selectedAlias = key;
                     this.createAliasInput = null;
@@ -240,15 +267,19 @@
                     target.aliases[key] = alias;
                     this.selectedAlias = null;
                 },
-                moveVoyage: function(event) {
+                moveChildren: function(event) {
                     const target = this.selectedIdentity.aliases[event.target.getAttribute("value")];
                     if (!target) {
                         return;
                     }
-                    const match = this.unlinkVoyage({ force: true });
+                    const match = this.unlinkChildren({ force: true });
                     if (match) {
                         for (const m of match) {
-                            target.voyages.push(m);
+                            if (m.prefix === 'V') {
+                                target.voyages.push(m.val);
+                            } else {
+                                target.relations.push(m.val);
+                            }
                         }
                     }
                 },
@@ -258,15 +289,20 @@
                         this.selectedIdentity.personal_data.principal_alias = alias.name;
                     }
                 },
-                showVoyageInfo: function() {
-                    if (this.selectedVoyage) {
-                        window.open(
-                            `/voyage/${this.selectedVoyage[0]}/variables`,
-                            gettext('Voyage details'),
-                            'location=no,toolbar=no,menubar=no');
+                showChildInfo: function() {
+                    if (this.selectAliasChildren) {
+                        let pk = this.selectAliasChildren[0];
+                        if (pk[0] === 'V') {
+                            window.open(
+                                `/voyage/${pk.substring(1)}/variables`,
+                                gettext('Voyage details'),
+                                'location=no,toolbar=no,menubar=no');
+                        } else {
+                            alert('view for relations not implemented');
+                        }
                     }
                 },
-                unlinkVoyage: function(event) {
+                unlinkChildren: function(event) {
                     const source = this.selAlias();
                     if (!source) {
                         return null;
@@ -274,18 +310,13 @@
                     if (!event.force && !confirm(gettext('Confirm voyage removal from the alias?'))) {
                         return null;
                     }
-                    const match = [];
-                    source.voyages = source.voyages.filter((val) => {
-                        const isMatch = this.selectedVoyage.indexOf(val.pk) >= 0;
-                        if (isMatch) {
-                            match.push(val);
-                        }
-                        return !isMatch;
-                    });
-                    if (match) {
-                        this.selectedVoyage = [];
+                    const matches = [];
+                    source.voyages = filterMatches(source.voyages, this.selectAliasChildren, matches, 'V');
+                    source.relations = filterMatches(source.relations, this.selectAliasChildren, matches, 'R');
+                    if (matches) {
+                        this.selectAliasChildren = [];
                     }
-                    return match;
+                    return matches;
                 },
                 linkVoyage: async function() {
                     const alias = this.selAlias();

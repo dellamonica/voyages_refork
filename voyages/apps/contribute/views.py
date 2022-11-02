@@ -2438,14 +2438,14 @@ def init_enslaver_interim(request):
     # much and the number of objects should be quite small.
     def _get_alias_data(alias):
         # Fetch Enslavers' relations with this alias
-        relations = list(EnslaverInRelation.objects.filter(enslaver_alias=alias).values('relation__id', role_name = F('role__name')))
+        relations = list(EnslaverInRelation.objects.filter(enslaver_alias=alias).values('relation__id', role_name=F('role__name')))
         for r in relations:
             info = EnslavementRelation.objects \
                 .annotate(enslaved_count=Count('enslaved', distinct=True)) \
                 .annotate(enslavers_count=Count('enslavers', distinct=True)) \
                 .select_related('role__name', 'relation_type__name') \
                 .filter(pk=r['relation__id']) \
-                .values('id', 'enslaved_count', 'enslavers_count', 'date', type=F('relation_type__name'))
+                .values('enslaved_count', 'enslavers_count', 'date', pk=F('id'), type=F('relation_type__name'))
             r.update(list(info)[0])
             r.pop('relation__id')
         return {
