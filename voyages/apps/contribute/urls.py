@@ -121,5 +121,8 @@ urlpatterns = [
         name='get_voyage_summary'),
     url(r'init_enslaver_interim',
         views.init_enslaver_interim,
-        name='init_enslaver_interim')
+        name='init_enslaver_interim'),
+    url(r'enslaver_update_actions',
+        views.get_enslaver_update_actions,
+        name='get_enslaver_update_actions')
 ]
