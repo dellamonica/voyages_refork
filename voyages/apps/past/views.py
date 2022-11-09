@@ -12,7 +12,7 @@ from django.db import transaction
 from django.db.models import F
 from django.http import JsonResponse, Http404
 from django.http.response import HttpResponseBadRequest
-from django.shortcuts import HttpResponseRedirect, redirect, render
+from django.shortcuts import HttpResponseRedirect, get_object_or_404, redirect, render
 from django.views.decorators.cache import cache_page
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -23,7 +23,7 @@ from voyages.apps.common.models import SavedQuery
 from voyages.apps.common.views import get_filtered_results
 from .models import (AltLanguageGroupName, Enslaved,
                      EnslavedContribution, EnslavedContributionLanguageEntry,
-                     EnslavedContributionNameEntry, EnslavedInRelation, EnslavedSearch, EnslavementRelation, EnslaverInRelation, EnslaverSearch, EnslaverVoyageConnection,
+                     EnslavedContributionNameEntry, EnslavedInRelation, EnslavedSearch, EnslavementRelation, EnslaverContribution, EnslaverInRelation, EnslaverSearch, EnslaverVoyageConnection,
                      LanguageGroup, MultiValueHelper, ModernCountry, EnslavedNameSearchCache,
                      _modern_name_fields, _name_fields)
 
@@ -391,6 +391,10 @@ def get_enslavement_relation_info(request, relation_pk):
     return JsonResponse(relation)
 
 @login_required
-@require_POST
-def enslaver_contrib_save(request):
-    pass
+def enslaver_contrib_editorial_review(request, pk):
+    contrib = get_object_or_404(EnslaverContribution, pk=pk)
+    return render(request, 'past/enslavers_contribute.html', {
+        'interim': contrib.data,
+        'editorialMode': True,
+        'contrib_pk': pk
+    })

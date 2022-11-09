@@ -1468,4 +1468,4 @@ class EnslaverContribution(models.Model):
     contributor = models.ForeignKey(User)
     created = models.DateTimeField(auto_now_add=True)
     status = models.IntegerField(null=False)
-    data = models.TextField(null=False, max_length=32768)
+    data = models.TextField(null=False)
